@@ -1,0 +1,6 @@
+{
+  "name": "Snap Roast",
+  "description": "A fast-paced multiplayer party game where players submit funny answers to prompts and vote on the best roast.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

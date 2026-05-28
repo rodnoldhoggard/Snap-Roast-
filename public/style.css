@@ -1,0 +1,152 @@
+/* Custom Style overrides for Snap Roast Party Game */
+
+/* Smooth fade in animation for view changes */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-fade-in {
+    animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Pumping active action state */
+button:active:not(:disabled),
+.copy-trigger:active {
+    transform: scale(0.95);
+    filter: brightness(1.1);
+}
+
+/* Timer warning animation */
+@keyframes pulseWarning {
+    0%, 100% {
+        transform: scale(1);
+        color: #ff5a5f;
+        box-shadow: 0 0 4px rgba(239, 68, 68, 0.2);
+    }
+    50% {
+        transform: scale(1.08);
+        color: #ef4444;
+        box-shadow: 0 0 14px rgba(239, 68, 68, 0.5);
+    }
+}
+
+.timer-panic {
+    animation: pulseWarning 0.5s ease-in-out infinite;
+    border-color: #ef4444 !important;
+}
+
+/* Custom Scrollbar for lobbies and scores list */
+::-webkit-scrollbar {
+    width: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 107, 107, 0.2);
+    border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 107, 107, 0.4);
+}
+
+/* Mobile viewport adjustments to prevent elastic scroll layout jumps */
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+    touch-action: manipulation;
+}
+
+/* Glass panel border design */
+.glass-panel {
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(12px);
+}
+
+/* Avatar colored dots standard design */
+.avatar-badge {
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+/* Disabled buttons look and behavior styling */
+button:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+/* Custom placeholder styles to fit UI nicely */
+input::placeholder,
+textarea::placeholder {
+    font-size: 0.95rem;
+}
+
+/* Confetti particles base transition config */
+#confetti-canvas {
+    width: 100%;
+    height: 100%;
+}
+
+/* Floating Reaction Emojis Animations */
+@keyframes floatUp {
+    0% {
+        transform: translateY(110vh) translateX(0) rotate(0deg) scale(0.4);
+        opacity: 0;
+    }
+    10% {
+        opacity: 1;
+        transform: translateY(90vh) translateX(var(--drift-1, -10px)) rotate(10deg) scale(1.3);
+    }
+    50% {
+        transform: translateY(50vh) translateX(var(--drift-2, 15px)) rotate(-15deg) scale(1.1);
+    }
+    90% {
+        opacity: 0.95;
+    }
+    100% {
+        transform: translateY(-10vh) translateX(var(--drift-3, -5px)) rotate(25deg) scale(0.6);
+        opacity: 0;
+    }
+}
+
+.floating-emoji-item {
+    position: fixed;
+    bottom: -100px;
+    font-size: 3rem;
+    pointer-events: none;
+    z-index: 9999;
+    animation: floatUp 3.2s cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
+    filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.4));
+    will-change: transform, opacity;
+}
+
+/* Extra emoji button scale anim */
+.btn-emoji-send:active {
+    transform: scale(1.3) !important;
+}
+
+/* Unread Badge pulsing animation */
+@keyframes pulseBadge {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.25);
+    }
+}
+
+.pulse-badge {
+    animation: pulseBadge 1.2s infinite;
+}

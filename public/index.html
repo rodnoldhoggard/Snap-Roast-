@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Snap Roast — Multiplayer Party Game</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS Play CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['Space Grotesk', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        coral: {
+                            400: '#FF8E8E',
+                            500: '#FF6B6B', // Hot Coral Target
+                            600: '#E05353',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Lucide Icons (loaded via CDN as well) -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans selection:bg-coral-500 selection:text-white">
+
+    <!-- Reconnect/Lost Connection Screen -->
+    <div id="screen-reconnect" class="hidden fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center animate-fade-in">
+        <div class="bg-slate-900 border border-coral-500/30 rounded-3xl p-8 max-w-sm w-full space-y-6 shadow-2xl shadow-coral-500/10">
+            <div class="inline-flex p-4 rounded-full bg-coral-500/10 text-coral-500 animate-pulse">
+                <i data-lucide="wifi-off" class="w-12 h-12"></i>
+            </div>
+            <div class="space-y-2">
+                <h2 class="text-2xl font-display font-bold text-white tracking-tight">Connection Lost</h2>
+                <p class="text-slate-400 text-sm">Attempting to automatically reconnect you to the room...</p>
+            </div>
+            <div class="flex justify-center">
+                <div class="w-8 h-8 border-4 border-coral-500 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+            <button id="btn-reconnect-fallback" class="w-full py-3 bg-slate-800 border border-slate-700 rounded-xl font-medium text-slate-300 hover:text-white hover:bg-slate-700 transition active:scale-95 duration-100 flex items-center justify-center gap-2">
+                <i data-lucide="home" class="w-4 h-4"></i> Return Home
+            </button>
+        </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="fixed top-4 left-1/4 right-1/4 z-50 flex flex-col items-center gap-2 pointer-events-none"></div>
+
+    <!-- App Container -->
+    <main class="flex-1 flex flex-col w-full max-w-md mx-auto px-4 py-6 relative">
+        
+        <!-- Floating Audio Volume Control -->
+        <div class="absolute top-4 right-4 z-40">
+            <button id="btn-toggle-audio" class="p-2.5 bg-slate-900 border border-slate-805 rounded-xl text-slate-400 hover:text-slate-100 transition active:scale-95 flex items-center justify-center shadow-lg cursor-pointer" title="Toggle Sound Placement">
+                <i id="audio-icon" data-lucide="volume-2" class="w-4 h-4"></i>
+            </button>
+        </div>
+        
+        <!-- Header Brand (always visible except in game rooms) -->
+        <header id="game-brand-header" class="flex flex-col items-center gap-1 mb-8">
+            <div class="flex items-center gap-2">
+                <div class="p-2 rounded-xl bg-gradient-to-tr from-coral-600 to-rose-400 rotate-6 shadow-md">
+                    <i data-lucide="flame" class="w-6 h-6 text-white animate-pulse"></i>
+                </div>
+                <h1 class="text-3xl font-display font-bold tracking-tight bg-gradient-to-r from-coral-400 to-rose-400 bg-clip-text text-transparent">SNAP ROAST</h1>
+            </div>
+            <p class="text-slate-400 text-xs font-medium tracking-wide">MULTIPLAYER PARTY ROASTER</p>
+        </header>
+
+        <!-- ==================== SCREEN 1: HOME SCREEN ==================== -->
+        <section id="screen-home" class="flex-1 flex flex-col justify-between space-y-8 animate-fade-in">
+            <div class="space-y-6">
+                <!-- Inputs Section -->
+                <div class="bg-slate-900/60 border border-slate-800 rounded-3xl p-6 space-y-4 backdrop-blur-sm">
+                    <div class="space-y-2">
+                        <label for="home-username" class="text-xs font-semibold tracking-wider text-slate-400 uppercase">Your Slang / Nickname</label>
+                        <div class="relative">
+                            <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">
+                                <i data-lucide="user" class="w-5 h-5"></i>
+                            </span>
+                            <input type="text" id="home-username" maxlength="15" placeholder="Enter name (e.g., BurnMaster)" 
+                                class="w-full pl-12 pr-4 py-3.5 bg-slate-950 border border-slate-800 rounded-2xl text-slate-100 placeholder-slate-600 focus:outline-none focus:border-coral-500 transition font-medium">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3 pt-2">
+                        <button id="btn-home-host" class="btn-primary py-4 rounded-2xl font-display font-bold text-sm tracking-wide bg-gradient-to-r from-coral-600 to-coral-500 text-white shadow-lg shadow-coral-500/10 hover:shadow-coral-500/20 flex flex-col items-center justify-center gap-1 transition active:scale-95">
+                            <i data-lucide="crown" class="w-5 h-5"></i>
+                            CREATE ROOM
+                        </button>
+                        <button id="btn-home-join" class="btn-tab bg-slate-800 border border-slate-700/80 hover:bg-slate-700/80 text-white py-4 rounded-2xl font-display font-bold text-sm tracking-wide flex flex-col items-center justify-center gap-1 transition active:scale-95">
+                            <i data-lucide="users" class="w-5 h-5"></i>
+                            JOIN ROOM
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Game Info Guide -->
+                <div class="bg-slate-900/45 border border-slate-800/60 rounded-3xl p-6 space-y-4">
+                    <h3 class="text-xs font-semibold tracking-wider text-slate-400 uppercase flex items-center gap-2">
+                        <i data-lucide="book-open" class="w-4 h-4 text-coral-500"></i>
+                        HOW TO ROAST
+                    </h3>
+                    <ul class="space-y-3.5 text-slate-300 text-sm">
+                        <li class="flex gap-3">
+                            <span class="flex-shrink-0 w-6 h-6 rounded-full bg-slate-850 border border-slate-700 text-coral-400 flex items-center justify-center font-bold text-xs">1</span>
+                            <span>Get a hilarious prompt. Everyone types their roast.</span>
+                        </li>
+                        <li class="flex gap-3">
+                            <span class="flex-shrink-0 w-6 h-6 rounded-full bg-slate-850 border border-slate-700 text-coral-400 flex items-center justify-center font-bold text-xs">2</span>
+                            <span>Submit fast! First gets <span class="text-amber-400 font-bold">+2 Bonus Pts</span>, second gets <span class="text-slate-300 font-semibold">+1 Pt</span>.</span>
+                        </li>
+                        <li class="flex gap-3">
+                            <span class="flex-shrink-0 w-6 h-6 rounded-full bg-slate-850 border border-slate-700 text-coral-400 flex items-center justify-center font-bold text-xs">3</span>
+                            <span>Vote on the best answer. Winner gets <span class="text-coral-400 font-bold">+3 Bonus Pts</span>! 7 rounds to victory.</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Footer Badge -->
+            <footer class="text-center text-slate-600 text-xs py-2 uppercase tracking-widest font-mono">
+                &copy; 2026 SNAP ROAST PORTABLE
+            </footer>
+        </section>
+
+        <!-- ==================== SCREEN 2: HOST LOBBY ==================== -->
+        <section id="screen-host-lobby" class="hidden flex-1 flex flex-col justify-between space-y-6 animate-fade-in">
+            <div class="space-y-6">
+                <!-- Room Code Poster -->
+                <div class="text-center bg-slate-900 border border-slate-800 rounded-3xl p-6 relative overflow-hidden">
+                    <div class="absolute inset-0 bg-gradient-to-br from-coral-500/5 to-transparent pointer-events-none"></div>
+                    <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Room Code</p>
+                    <div id="host-code-display" class="copy-trigger text-5xl font-display font-black text-white tracking-widest cursor-pointer select-all flex items-center justify-center gap-1 hover:text-coral-400 transition">
+                        <span>ABCD</span>
+                        <i data-lucide="copy" class="w-5 h-5 text-slate-500 ml-1"></i>
+                    </div>
+                    <p class="text-[10px] text-slate-500 uppercase tracking-wide mt-2">Tap code to copy invite link</p>
+                    <button id="btn-host-open-settings" class="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/80 hover:bg-slate-800 border border-slate-705/40 rounded-xl text-[11px] font-bold uppercase tracking-wider text-slate-300 hover:text-white transition active:scale-95">
+                        <i data-lucide="settings" class="w-3.5 h-3.5"></i> Set Slang / Avatar
+                    </button>
+                </div>
+
+                <!-- Players & Chat Tab Layout -->
+                <div class="space-y-4">
+                    <div class="flex bg-slate-900/40 border-b border-slate-800 rounded-t-2xl p-1 gap-1">
+                        <button id="btn-host-tab-players" class="flex-1 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider text-coral-500 bg-slate-900 border border-slate-800 transition-all duration-150">
+                            Players (<span id="host-player-count">1</span>/8)
+                        </button>
+                        <button id="btn-host-tab-chat" class="flex-1 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider text-slate-400 hover:text-white transition-all duration-150 flex items-center justify-center gap-1.5 relative">
+                            Chat 💬
+                            <span id="host-chat-unread" class="hidden w-2.5 h-2.5 bg-coral-500 rounded-full animate-bounce absolute top-2 right-4 border border-slate-950"></span>
+                        </button>
+                    </div>
+
+                    <!-- Players List Panel -->
+                    <div id="host-players-panel" class="space-y-3">
+                        <div class="flex justify-between items-center px-1">
+                            <span class="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Group roster</span>
+                            <span class="text-[10px] bg-slate-800 border border-slate-700/50 text-slate-400 px-2.5 py-1 rounded-full font-bold">2+ PLAYERS TO START</span>
+                        </div>
+                        <div id="host-players-list" class="space-y-2 max-h-[220px] min-h-[160px] overflow-y-auto pr-1">
+                            <!-- Dynamic Player Elements -->
+                        </div>
+                    </div>
+
+                    <!-- Chat Panel -->
+                    <div id="host-chat-panel" class="hidden flex flex-col space-y-3">
+                        <div id="host-chat-messages" class="space-y-3 max-h-[200px] min-h-[160px] overflow-y-auto pr-1 bg-slate-950/40 p-3 rounded-2xl border border-slate-850/80">
+                            <div class="text-center text-slate-600 text-[11px] italic py-8">Lobby chat started. Send a greeting!</div>
+                        </div>
+                        <div class="flex gap-2">
+                            <input type="text" id="host-chat-input" maxlength="100" placeholder="Type message..." 
+                                class="flex-1 px-3 py-2 bg-slate-950 border border-slate-850 rounded-xl text-slate-200 placeholder-slate-600 text-sm focus:outline-none focus:border-coral-500 transition">
+                            <button id="btn-host-chat-send" class="p-2.5 bg-coral-500 hover:bg-coral-400 text-white rounded-xl transition-colors active:scale-95 duration-100 flex items-center justify-center">
+                                <i data-lucide="send" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action footer -->
+            <div class="space-y-3">
+                <button id="btn-host-start" disabled class="w-full py-4 bg-gradient-to-r from-coral-600 to-coral-500 hover:from-coral-500 hover:to-coral-400 text-white disabled:from-slate-800 disabled:to-slate-800 disabled:text-slate-600 border disabled:border-slate-850 hover:shadow-lg hover:shadow-coral-500/20 disabled:shadow-none shadow-md rounded-2xl font-display font-bold tracking-wide transition active:scale-95 disabled:active:scale-100 duration-100 flex items-center justify-center gap-2">
+                    <i data-lucide="play" class="w-5 h-5"></i>
+                    START GAME
+                </button>
+                <button id="btn-host-leave" class="w-full py-3.5 bg-slate-950 border border-slate-800 rounded-2xl text-xs font-semibold tracking-wider text-slate-400 hover:text-rose-400 hover:border-rose-500/30 transition active:scale-95">
+                    ABANDON LOBBY
+                </button>
+            </div>
+        </section>
+
+        <!-- ==================== SCREEN 3: JOIN SCREEN ==================== -->
+        <section id="screen-join" class="hidden flex-1 flex flex-col justify-between space-y-6 animate-fade-in">
+            <div class="space-y-5">
+                <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-4">
+                    <div class="space-y-2">
+                        <label for="join-code" class="text-xs font-semibold tracking-wider text-slate-400 uppercase">Room Code</label>
+                        <div class="relative">
+                            <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">
+                                <i data-lucide="hashtag" class="w-5 h-5"></i>
+                            </span>
+                            <input type="text" id="join-code" maxlength="4" placeholder="Enter 4-character code" 
+                                class="w-full pl-12 pr-4 py-3.5 bg-slate-950 border border-slate-800 rounded-2xl text-slate-100 placeholder-slate-600 uppercase tracking-widest focus:outline-none focus:border-coral-500 transition font-display font-bold text-center">
+                        </div>
+                    </div>
+
+                    <div class="space-y-2">
+                        <label for="join-username" class="text-xs font-semibold tracking-wider text-slate-400 uppercase">Your Slang / Nickname</label>
+                        <div class="relative">
+                            <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">
+                                <i data-lucide="user" class="w-5 h-5"></i>
+                            </span>
+                            <input type="text" id="join-username" maxlength="15" placeholder="Enter name" 
+                                class="w-full pl-12 pr-4 py-3.5 bg-slate-950 border border-slate-800 rounded-2xl text-slate-100 placeholder-slate-600 focus:outline-none focus:border-coral-500 transition font-medium">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="space-y-3">
+                <button id="btn-join-submit" class="w-full py-4 bg-gradient-to-r from-coral-600 to-coral-500 text-white shadow-lg shadow-coral-500/10 hover:shadow-coral-500/20 rounded-2xl font-display font-medium tracking-wide hover:from-coral-500 hover:to-coral-400 transition active:scale-95 duration-100 flex items-center justify-center gap-2">
+                    <i data-lucide="log-in" class="w-5 h-5"></i>
+                    JOIN GAME
+                </button>
+                <button id="btn-join-back" class="w-full py-3.5 bg-slate-950 border border-slate-850 rounded-2xl text-xs font-semibold tracking-wider text-slate-400 hover:text-white transition active:scale-95">
+                    BACK TO HOME
+                </button>
+            </div>
+        </section>
+
+        <!-- ==================== SCREEN 4: WAITING LOBBY (JOINER) ==================== -->
+        <section id="screen-waiting-lobby" class="hidden flex-1 flex flex-col justify-between space-y-6 animate-fade-in">
+            <div class="space-y-6">
+                <!-- Code Poster -->
+                <div class="text-center bg-slate-900 border border-slate-800 rounded-3xl p-5 relative overflow-hidden">
+                    <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Room Code</p>
+                    <div id="wait-code-display" class="text-4xl font-display font-black text-coral-500 tracking-widest">ABCD</div>
+                    <button id="btn-wait-open-settings" class="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/80 hover:bg-slate-800 border border-slate-705/40 rounded-xl text-[11px] font-bold uppercase tracking-wider text-slate-300 hover:text-white transition active:scale-95">
+                        <i data-lucide="settings" class="w-3.5 h-3.5"></i> Set Slang / Avatar
+                    </button>
+                </div>
+
+                <!-- Players & Chat Tab Layout -->
+                <div class="space-y-4">
+                    <div class="flex bg-slate-900/40 border-b border-slate-800 rounded-t-2xl p-1 gap-1">
+                        <button id="btn-wait-tab-players" class="flex-1 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider text-coral-500 bg-slate-900 border border-slate-800 transition-all duration-150">
+                            Players (<span id="wait-player-count">2</span>)
+                        </button>
+                        <button id="btn-wait-tab-chat" class="flex-1 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider text-slate-400 hover:text-white transition-all duration-150 flex items-center justify-center gap-1.5 relative">
+                            Chat 💬
+                            <span id="wait-chat-unread" class="hidden w-2.5 h-2.5 bg-coral-500 rounded-full animate-bounce absolute top-2 right-4 border border-slate-950"></span>
+                        </button>
+                    </div>
+
+                    <!-- Players List Panel -->
+                    <div id="wait-players-panel" class="space-y-3">
+                        <div class="px-1 text-left">
+                            <span class="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Group roster</span>
+                        </div>
+                        <div id="wait-players-list" class="space-y-2 max-h-[220px] min-h-[160px] overflow-y-auto pr-1">
+                            <!-- Dynamic elements -->
+                        </div>
+                    </div>
+
+                    <!-- Chat Panel -->
+                    <div id="wait-chat-panel" class="hidden flex flex-col space-y-3">
+                        <div id="wait-chat-messages" class="space-y-3 max-h-[200px] min-h-[160px] overflow-y-auto pr-1 bg-slate-950/40 p-3 rounded-2xl border border-slate-850/80">
+                            <div class="text-center text-slate-600 text-[11px] italic py-8">Lobby chat started. Send a greeting!</div>
+                        </div>
+                        <div class="flex gap-2">
+                            <input type="text" id="wait-chat-input" maxlength="100" placeholder="Type message..." 
+                                class="flex-1 px-3 py-2 bg-slate-950 border border-slate-850 rounded-xl text-slate-200 placeholder-slate-600 text-sm focus:outline-none focus:border-coral-500 transition">
+                            <button id="btn-wait-chat-send" class="p-2.5 bg-coral-500 hover:bg-coral-400 text-white rounded-xl transition-colors active:scale-95 duration-100 flex items-center justify-center">
+                                <i data-lucide="send" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Loader Status bar -->
+            <div class="space-y-4">
+                <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5 flex items-center justify-center gap-3.5 shadow-md">
+                    <div class="relative flex h-3.5 w-3.5">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-coral-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-3.5 w-3.5 bg-coral-500"></span>
+                    </div>
+                    <span class="text-slate-300 text-sm font-medium tracking-wide animate-pulse">Waiting for host to start game...</span>
+                </div>
+                <button id="btn-wait-leave" class="w-full py-3 bg-slate-950 border border-slate-850 rounded-2xl text-xs font-semibold tracking-wider text-slate-500 hover:text-rose-450 hover:border-rose-500/20 transition active:scale-95">
+                    LEAVE GAME
+                </button>
+            </div>
+        </section>
+
+        <!-- ==================== SCREEN 5: PROMPT SCREEN ==================== -->
+        <section id="screen-prompt" class="hidden flex-1 flex flex-col justify-between space-y-6 animate-fade-in">
+            <div class="space-y-5 flex-1 flex flex-col">
+                <!-- Status Row -->
+                <div class="flex justify-between items-center bg-slate-900/40 px-4 py-2 rounded-2xl border border-slate-800/60">
+                    <div class="text-xs font-medium text-slate-400 font-mono">
+                        ROUND <span id="prompt-round-number" class="text-white font-bold">1</span>/7
+                    </div>
+                    
+                    <!-- Circular Timer -->
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-bold font-mono text-slate-400 uppercase">Roast Time:</span>
+                        <div id="prompt-timer" class="text-xl font-mono font-black text-coral-500 animate-pulse bg-slate-950 px-3 py-1 rounded-xl border border-slate-800">
+                            20s
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Active Prompt Card -->
+                <div class="bg-gradient-to-tr from-slate-900 to-slate-850 border border-slate-800 rounded-3xl p-6 shadow-xl shadow-coral-500/5 flex flex-col items-center justify-center min-h-[140px] text-center relative select-none">
+                    <p class="text-[10px] font-bold tracking-widest text-coral-500 uppercase mb-3 font-display">THE PROMPT</p>
+                    <h2 id="current-prompt-text" class="text-xl sm:text-2xl font-display font-black text-white leading-relaxed tracking-tight px-1">
+                        Name something you'd find in a grandma's purse
+                    </h2>
+                </div>
+
+                <!-- Input Panel -->
+                <div id="prompt-input-area" class="space-y-3 flex-1 flex flex-col justify-center">
+                    <div class="relative flex-1 flex flex-col justify-center">
+                        <textarea id="prompt-answer-input" maxlength="120" placeholder="Type your hilarious roast here..." 
+                            class="w-full h-28 p-4 bg-slate-950 border border-slate-850 rounded-2xl text-slate-100 placeholder-slate-700 focus:outline-none focus:border-coral-500 transition text-base font-medium resize-none shadow-inner"></textarea>
+                        <div class="absolute right-3.5 bottom-3 text-[10px] font-mono font-medium text-slate-600">
+                            <span id="prompt-char-count">0</span>/120
+                        </div>
+                    </div>
+                    
+                    <button id="btn-prompt-submit" class="w-full py-4 bg-gradient-to-r from-coral-600 to-coral-500 hover:from-coral-500 hover:to-coral-400 text-white hover:shadow-lg hover:shadow-coral-500/10 rounded-2xl font-display font-bold tracking-wider transition active:scale-95 duration-100 flex items-center justify-center gap-2">
+                        <i data-lucide="send" class="w-4 h-4"></i>
+                        SUBMIT ROAST
+                    </button>
+                </div>
+
+                <!-- Submit Pending State wrapper -->
+                <div id="prompt-submitted-state" class="hidden flex-1 flex flex-col justify-center items-center text-center p-6 space-y-6 animate-pulse">
+                    <div class="p-5 bg-coral-500/10 text-coral-500 rounded-full">
+                        <i data-lucide="lock" class="w-10 h-10"></i>
+                    </div>
+                    <div class="space-y-1.5">
+                        <h3 class="text-lg font-display font-bold text-white">Roast Locked!</h3>
+                        <p class="text-slate-400 text-sm max-w-xs">Waiting for other roasters to submit or timer to run out...</p>
+                    </div>
+
+                    <!-- Submission Indicators -->
+                    <div class="w-full max-w-xs bg-slate-900/60 rounded-2xl p-4 border border-slate-850 space-y-2 text-left">
+                        <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Submissions Received</p>
+                        <div id="prompt-submitted-grid" class="flex flex-wrap gap-2">
+                            <!-- Player initials tags showing who has submitted -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Floating Emoji reaction bar layout -->
+            <div class="flex flex-col items-center gap-1.5 mt-auto pt-3 border-t border-slate-900/60">
+                <p class="text-[9px] font-mono font-bold tracking-widest text-slate-500 uppercase flex items-center gap-1.5">
+                    <i data-lucide="sparkles" class="w-3.5 h-3.5 text-coral-500"></i> REACT LIVE DURING PROMPT
+                </p>
+                <div class="emoji-bar flex items-center justify-between bg-slate-900/60 border border-slate-850 rounded-2xl p-1 w-full shadow-lg gap-2">
+                    <button data-emoji="😂" class="btn-emoji-send text-2xl hover:scale-130 active:scale-95 transition-all duration-100 ease-out py-1 px-3">😂</button>
+                    <button data-emoji="🔥" class="btn-emoji-send text-2xl hover:scale-130 active:scale-95 transition-all duration-100 ease-out py-1 px-3">🔥</button>
+                    <button data-emoji="💀" class="btn-emoji-send text-2xl hover:scale-130 active:scale-95 transition-all duration-100 ease-out py-1 px-3">💀</button>
+                    <button data-emoji="😮" class="btn-emoji-send text-2xl hover:scale-130 active:scale-95 transition-all duration-100 ease-out py-1 px-3">😮</button>
+                    <button data-emoji="👑" class="btn-emoji-send text-2xl hover:scale-130 active:scale-95 transition-all duration-100 ease-out py-1 px-3">👑</button>
+                    <button data-emoji="😱" class="btn-emoji-send text-2xl hover:scale-130 active:scale-95 transition-all duration-100 ease-out py-1 px-3">😱</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== SCREEN 6: VOTING SCREEN ==================== -->
+        <section id="screen-voting" class="hidden flex-1 flex flex-col justify-between space-y-5 animate-fade-in">
+            <div class="space-y-4 flex-1 flex flex-col">
+                <!-- Status Row -->
+                <div class="flex justify-between items-center bg-slate-900/40 px-4 py-2 rounded-2xl border border-slate-800/60">
+                    <span class="text-xs font-bold tracking-wider font-mono text-slate-400 uppercase">VOTE FOR THE FUNNIEST</span>
+                    <!-- Timer -->
+                    <div class="flex items-center gap-2">
+                        <div id="voting-timer" class="text-xl font-mono font-black text-coral-500 animate-pulse bg-slate-950 px-3 py-1 rounded-xl border border-slate-800">
+                            15s
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Prompt reference -->
+                <div class="bg-slate-900/30 p-3.5 rounded-2xl border border-slate-850 text-center select-none text-xs text-slate-400">
+                    <span class="text-coral-500 font-bold uppercase tracking-wide mr-1 font-display">Prompt:</span>
+                    <span id="voting-prompt-preview" class="italic font-medium text-slate-300">"What do cats actually think about?"</span>
+                </div>
+
+                <!-- Submissions Options Menu (Dynamic) -->
+                <div id="voting-options-list" class="space-y-3 overflow-y-auto max-h-[350px] pr-1 flex-1 py-1">
+                    <!-- Cards representing submissions -->
+                </div>
+            </div>
+
+            <!-- Wait for votes feedback -->
+            <div id="voting-pending-widget" class="hidden bg-slate-900 border border-slate-850 rounded-2xl p-4 flex items-center justify-center gap-3.5 shadow-md">
+                <div class="text-coral-500 text-xs font-bold animate-ping rounded-full h-2 w-2 bg-coral-500"></div>
+                <span class="text-slate-300 text-sm font-medium">Vote Recorded! Waiting for others...</span>
+            </div>
+            
+            <!-- Floating Emoji reaction bar layout -->
+            <div class="flex flex-col items-center gap-1.5 mt-auto pt-3 border-t border-slate-900/60">
+                <p class="text-[9px] font-mono font-bold tracking-widest text-slate-500 uppercase flex items-center gap-1.5">
+                    <i data-lucide="sparkles" class="w-3.5 h-3.5 text-coral-500"></i> REACT LIVE DURING VOTING
+                </p>
+                <div class="emoji-bar flex items-center justify-between bg-slate-900/60 border border-slate-850 rounded-2xl p-1 w-full shadow-lg gap-2">
+                    <button data-emoji="😂" class="btn-emoji-send text-2xl hover:scale-130 active:scale-95 transition-all duration-100 ease-out py-1 px-3">😂</button>
+                    <button data-emoji="🔥" class="btn-emoji-send text-2xl hover:scale-130 active:scale-95 transition-all duration-100 ease-out py-1 px-3">🔥</button>
+                    <button data-emoji="💀" class="btn-emoji-send text-2xl hover:scale-130 active:scale-95 transition-all duration-100 ease-out py-1 px-3">💀</button>
+                    <button data-emoji="😮" class="btn-emoji-send text-2xl hover:scale-130 active:scale-95 transition-all duration-100 ease-out py-1 px-3">😮</button>
+                    <button data-emoji="👑" class="btn-emoji-send text-2xl hover:scale-130 active:scale-95 transition-all duration-100 ease-out py-1 px-3">👑</button>
+                    <button data-emoji="😱" class="btn-emoji-send text-2xl hover:scale-130 active:scale-95 transition-all duration-100 ease-out py-1 px-3">😱</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== SCREEN 7: ROUND RESULTS SCREEN ==================== -->
+        <section id="screen-results" class="hidden flex-1 flex flex-col justify-between space-y-6 animate-fade-in">
+            <div class="space-y-5">
+                <!-- Round Header -->
+                <div class="text-center">
+                    <p class="text-[10px] font-bold tracking-widest text-coral-500 uppercase mb-0.5">ROUND COMPLETED</p>
+                    <h2 class="text-2xl font-display font-black text-white">REVEALING THE ROASTS</h2>
+                </div>
+
+                <!-- Best Answers Reveal List (Dynamic) -->
+                <div class="space-y-3">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 px-1">ROAST REVEAL</h3>
+                    <div id="results-answers-list" class="space-y-3 max-h-[250px] overflow-y-auto pr-1">
+                        <!-- Dynamic reveal cards -->
+                    </div>
+                </div>
+
+                <!-- Leaderboard Scores -->
+                <div class="space-y-3 pt-1">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 px-1">SCOREBOARD RANKING</h3>
+                    <div id="results-scoreboard" class="space-y-2 max-h-[200px] overflow-y-auto pr-1">
+                        <!-- Leaderboard rankings rows -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Host advance button -->
+            <div class="space-y-2">
+                <button id="btn-results-next" class="hidden w-full py-4 bg-gradient-to-r from-coral-600 to-coral-500 hover:from-coral-500 hover:to-coral-400 text-white hover:shadow-lg hover:shadow-coral-500/20 rounded-2xl font-display font-bold tracking-wider transition active:scale-95 duration-100 flex items-center justify-center gap-2">
+                    <span>NEXT ROUND</span>
+                    <i data-lucide="arrow-right" class="w-5 h-5"></i>
+                </button>
+                <div id="results-wait-status" class="hidden bg-slate-900/60 border border-slate-850 p-4 rounded-2xl flex items-center justify-center gap-3 shadow-sm animate-pulse">
+                    <div class="h-2 w-2 bg-coral-500 rounded-full animate-ping"></div>
+                    <span class="text-slate-400 text-sm font-medium">Waiting for Host to advance game...</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== SCREEN 8: FINAL LEADERBOARD ==================== -->
+        <section id="screen-final" class="hidden flex-1 flex flex-col justify-between space-y-6 animate-fade-in relative overflow-hidden">
+            <!-- Canvas layer for clean particle confetti -->
+            <canvas id="confetti-canvas" class="absolute inset-0 z-0 pointer-events-none w-full h-full"></canvas>
+
+            <div class="space-y-6 z-10 relative">
+                <!-- Podiums/Winner Greeting -->
+                <div class="text-center space-y-2 py-4">
+                    <div class="inline-flex p-4 rounded-full bg-coral-500/10 text-coral-500 shadow-xl shadow-coral-500/10 animate-bounce relative">
+                        <i data-lucide="trophy" class="w-12 h-12"></i>
+                        <span class="absolute -top-1.5 -right-1 flex h-4 w-4">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-4 w-4 bg-amber-500 flex items-center justify-center text-[10px] font-bold">1</span>
+                        </span>
+                    </div>
+                    <div class="space-y-0.5">
+                        <h2 class="text-3xl font-display font-black text-white leading-none tracking-tight">GAME OVER!</h2>
+                        <p class="text-slate-400 text-xs font-semibold uppercase tracking-wider">The Ultimate Roast King is crowned</p>
+                    </div>
+                </div>
+
+                <!-- Winner Announcement card -->
+                <div id="final-winner-card" class="bg-gradient-to-r from-coral-600 to-rose-500 p-5 rounded-3xl border border-coral-400/20 text-center flex flex-col items-center shadow-lg shadow-coral-500/15">
+                    <span class="text-[9px] font-bold text-white/80 uppercase tracking-widest mb-1.5 font-display">GRAND WINNER</span>
+                    <h3 id="final-winner-name" class="text-2xl font-display font-black text-white tracking-tight">PlayerName</h3>
+                    <p class="text-white/90 text-sm font-mono mt-1 font-bold">
+                        With <span id="final-winner-score">0</span> pts!
+                    </p>
+                </div>
+
+                <!-- Leaderboard Rank List -->
+                <div class="space-y-3">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 px-1">FINAL RECORD</h3>
+                    <div id="final-scoreboard-list" class="space-y-2 max-h-[220px] overflow-y-auto pr-1">
+                        <!-- Score lists sorted -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Global Action Controls -->
+            <div class="space-y-3 z-10 relative">
+                <button id="btn-final-share" class="w-full py-4 bg-slate-900 hover:bg-slate-850 text-white border border-slate-800 rounded-2xl font-display font-bold tracking-wide transition active:scale-95 duration-100 flex items-center justify-center gap-2 shadow-md">
+                    <i data-lucide="share-2" class="w-5 h-5 text-coral-500"></i>
+                    SHARE RESULTS
+                </button>
+                
+                <button id="btn-final-reset" class="hidden w-full py-4 bg-gradient-to-r from-coral-600 to-coral-500 hover:from-coral-500 hover:to-coral-400 text-white hover:shadow-lg hover:shadow-coral-500/25 rounded-2xl font-display font-bold tracking-wide transition active:scale-95 duration-100 flex items-center justify-center gap-2 shadow-md">
+                    <i data-lucide="refresh-cw" class="w-5 h-5"></i>
+                    PLAY AGAIN
+                </button>
+                <div id="final-wait-status" class="hidden bg-slate-900/60 border border-slate-855 p-3.5 rounded-2xl flex items-center justify-center gap-3 shadow-sm animate-pulse">
+                    <div class="h-2 w-2 bg-coral-500 rounded-full animate-ping"></div>
+                    <span class="text-slate-400 text-xs font-medium uppercase tracking-wider">Waiting for host to start a new game...</span>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ==================== LOBBY SETTINGS MODAL ==================== -->
+    <div id="modal-lobby-settings" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+        <div class="bg-slate-900 border border-slate-800 shadow-2xl rounded-3xl w-full max-w-sm p-6 space-y-5 transform scale-95 transition-all duration-200">
+            <!-- Modal Header -->
+            <div class="flex items-center justify-between border-b border-slate-800/60 pb-3">
+                <h3 class="font-display font-black text-lg text-white tracking-wide flex items-center gap-2">
+                    <i data-lucide="user-cog" class="w-5 h-5 text-coral-500"></i> EDIT PROFILE
+                </h3>
+                <button id="btn-close-settings" class="p-1 px-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition text-xs font-mono">
+                    [X]
+                </button>
+            </div>
+
+            <!-- Edit Nickname -->
+            <div class="space-y-2">
+                <label for="settings-username" class="text-xs font-bold uppercase tracking-wider text-slate-400 block">Your Slang / Nickname</label>
+                <input type="text" id="settings-username" maxlength="15" 
+                    class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 placeholder-slate-600 focus:outline-none focus:border-coral-500 transition font-medium text-sm">
+            </div>
+
+            <!-- Avatar Color Picker -->
+            <div class="space-y-3">
+                <label class="text-xs font-bold uppercase tracking-wider text-slate-400 block">Choose Avatar Theme</label>
+                <div class="grid grid-cols-4 gap-2" id="settings-color-grid">
+                    <button data-color="bg-pink-500" class="h-10 rounded-xl bg-pink-500 border-2 border-transparent transition hover:scale-105 active:scale-95 duration-100 flex items-center justify-center text-white text-xs font-black"></button>
+                    <button data-color="bg-purple-500" class="h-10 rounded-xl bg-purple-500 border-2 border-transparent transition hover:scale-105 active:scale-95 duration-100 flex items-center justify-center text-white text-xs font-black"></button>
+                    <button data-color="bg-emerald-500" class="h-10 rounded-xl bg-emerald-500 border-2 border-transparent transition hover:scale-105 active:scale-95 duration-100 flex items-center justify-center text-white text-xs font-black"></button>
+                    <button data-color="bg-sky-500" class="h-10 rounded-xl bg-sky-500 border-2 border-transparent transition hover:scale-105 active:scale-95 duration-100 flex items-center justify-center text-white text-xs font-black"></button>
+                    <button data-color="bg-amber-500" class="h-10 rounded-xl bg-amber-500 border-2 border-transparent transition hover:scale-105 active:scale-95 duration-100 flex items-center justify-center text-white text-xs font-black"></button>
+                    <button data-color="bg-rose-500" class="h-10 rounded-xl bg-rose-500 border-2 border-transparent transition hover:scale-105 active:scale-95 duration-100 flex items-center justify-center text-white text-xs font-black"></button>
+                    <button data-color="bg-indigo-500" class="h-10 rounded-xl bg-indigo-500 border-2 border-transparent transition hover:scale-105 active:scale-95 duration-100 flex items-center justify-center text-white text-xs font-black"></button>
+                    <button data-color="bg-orange-500" class="h-10 rounded-xl bg-orange-500 border-2 border-transparent transition hover:scale-105 active:scale-95 duration-100 flex items-center justify-center text-white text-xs font-black"></button>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="pt-2">
+                <button id="btn-save-settings" class="w-full py-3 bg-gradient-to-r from-coral-600 to-coral-500 hover:from-coral-500 hover:to-coral-400 text-white text-sm font-bold rounded-xl transition active:scale-95 duration-100 flex items-center justify-center gap-1.5 shadow-md shadow-coral-500/10">
+                    <i data-lucide="save" class="w-4 h-4"></i> SAVE PROFILE
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Socket.io Script Served Directly by Backend -->
+    <script src="/socket.io/socket.io.js"></script>
+    <!-- Game JS -->
+    <script src="/game.js"></script>
+</body>
+</html>
